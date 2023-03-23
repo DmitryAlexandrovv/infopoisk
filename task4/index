@@ -1,0 +1,210 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/DmitryAlexandrovv/infopoisk/blob/master/task4/index\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!pip install pymorphy2"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "h8FLuL2m0Vy3",
+        "outputId": "0c1fc278-7088-41e8-fd6e-50bb55712cdf"
+      },
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Looking in indexes: https://pypi.org/simple, https://us-python.pkg.dev/colab-wheels/public/simple/\n",
+            "Collecting pymorphy2\n",
+            "  Downloading pymorphy2-0.9.1-py3-none-any.whl (55 kB)\n",
+            "\u001b[2K     \u001b[90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m \u001b[32m55.5/55.5 KB\u001b[0m \u001b[31m563.4 kB/s\u001b[0m eta \u001b[36m0:00:00\u001b[0m\n",
+            "\u001b[?25hCollecting pymorphy2-dicts-ru<3.0,>=2.4\n",
+            "  Downloading pymorphy2_dicts_ru-2.4.417127.4579844-py2.py3-none-any.whl (8.2 MB)\n",
+            "\u001b[2K     \u001b[90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m \u001b[32m8.2/8.2 MB\u001b[0m \u001b[31m17.7 MB/s\u001b[0m eta \u001b[36m0:00:00\u001b[0m\n",
+            "\u001b[?25hCollecting docopt>=0.6\n",
+            "  Downloading docopt-0.6.2.tar.gz (25 kB)\n",
+            "  Preparing metadata (setup.py) ... \u001b[?25l\u001b[?25hdone\n",
+            "Collecting dawg-python>=0.7.1\n",
+            "  Downloading DAWG_Python-0.7.2-py2.py3-none-any.whl (11 kB)\n",
+            "Building wheels for collected packages: docopt\n",
+            "  Building wheel for docopt (setup.py) ... \u001b[?25l\u001b[?25hdone\n",
+            "  Created wheel for docopt: filename=docopt-0.6.2-py2.py3-none-any.whl size=13721 sha256=2157d88a2f5a5f368cb7936d9d6295343f734f59a42291ad95ca2d59becf4694\n",
+            "  Stored in directory: /root/.cache/pip/wheels/70/4a/46/1309fc853b8d395e60bafaf1b6df7845bdd82c95fd59dd8d2b\n",
+            "Successfully built docopt\n",
+            "Installing collected packages: pymorphy2-dicts-ru, docopt, dawg-python, pymorphy2\n",
+            "Successfully installed dawg-python-0.7.2 docopt-0.6.2 pymorphy2-0.9.1 pymorphy2-dicts-ru-2.4.417127.4579844\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "nIvHqDy7YGu5",
+        "outputId": "23102529-4d02-4bd0-9d83-f759f096387c"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Mounted at /content/drive\n"
+          ]
+        }
+      ],
+      "source": [
+        "import math\n",
+        "import string\n",
+        "import pymorphy2\n",
+        "from bs4 import BeautifulSoup\n",
+        "from google.colab import drive\n",
+        "drive.mount('/content/drive')\n",
+        "\n",
+        "def pos(word, morth=pymorphy2.MorphAnalyzer()):\n",
+        "    return morth.parse(word)[0].tag.POS\n",
+        "\n",
+        "def get_text_from_html(html):\n",
+        "    soup = BeautifulSoup(data, features=\"html.parser\")\n",
+        "\n",
+        "    for script in soup([\"script\", \"style\"]):\n",
+        "        script.extract()    # rip it out\n",
+        "\n",
+        "    text = soup.get_text(' ')\n",
+        "    lines = (line.strip() for line in text.splitlines())\n",
+        "    chunks = (phrase.strip() for line in lines for phrase in line.split(\"  \"))\n",
+        "    text = '\\n'.join(chunk for chunk in chunks if chunk)\n",
+        "\n",
+        "    # Убираем предлоги и союзы, знаки препинания\n",
+        "    words = text.split()\n",
+        "    functors_pos = {'CONJ', 'PREP'}  # function words\n",
+        "    tt = str.maketrans(dict.fromkeys(string.punctuation))\n",
+        "    prepared_text = ' '.join([word for word in words if pos(word) not in functors_pos]).translate(tt)\n",
+        "\n",
+        "    return prepared_text\n",
+        "\n",
+        "tokens_file = open('drive/MyDrive/dz/tokens.txt', 'r')\n",
+        "lemmas_file = open('drive/MyDrive/dz/lemmas.txt', 'r')\n",
+        "lemmas_lines = lemmas_file.readlines()\n",
+        "lines = tokens_file.readlines()\n",
+        "dictionary_tokens = {}\n",
+        "dictionary_lemmas = {}\n",
+        "\n",
+        "files_content = {}\n",
+        "\n",
+        "for i in range(100):\n",
+        "    with open('drive/MyDrive/dz/pages/page' + str(i) + '.html', 'r') as file:\n",
+        "        data = file.read()\n",
+        "        text = get_text_from_html(data)\n",
+        "\n",
+        "        files_content.update({str(i): text})\n",
+        "\n",
+        "for line in lemmas_lines:\n",
+        "    lemma = line.strip().partition(': ')[0]\n",
+        "    forms = line.strip().partition(': ')[2]\n",
+        "    pages_count_with_lemma = 0\n",
+        "    \n",
+        "    for file in files_content:\n",
+        "        text = files_content.get(file)\n",
+        "        words_count = len(text.split(' '))\n",
+        "        forms_count = 0\n",
+        "\n",
+        "        for form in forms:\n",
+        "            if text.lower().find(form) != -1 and len(form.strip()) > 0:\n",
+        "                forms_count += 1\n",
+        "                break\n",
+        "\n",
+        "        for form in forms.partition(' '):\n",
+        "            if text.lower().find(form) != -1 and len(form.strip()) > 0:\n",
+        "                pages_count_with_lemma += 1\n",
+        "                break\n",
+        "\n",
+        "        \n",
+        "        if (dictionary_lemmas.get(file)):\n",
+        "            dictionary_lemmas.get(file).update({lemma: {\"forms_count\": forms_count, \"words_count\": words_count, 'pages_count_with_lemma': pages_count_with_lemma}})\n",
+        "        else:\n",
+        "            dictionary_lemmas.update({file: {lemma: {\"forms_count\": forms_count, \"words_count\": words_count, 'pages_count_with_lemma': pages_count_with_lemma}}})\n",
+        "\n",
+        "for line in lines:\n",
+        "    token = line.strip()\n",
+        "    tokens = {}\n",
+        "    pages_count_with_token = 1\n",
+        "\n",
+        "    for file in files_content:\n",
+        "        if (text.lower().find(token) != -1):\n",
+        "            pages_count_with_token += 1\n",
+        "\n",
+        "    for file in files_content:\n",
+        "        text = files_content.get(file)\n",
+        "        count = text.lower().count(token)\n",
+        "        lemmas_count = 0\n",
+        "        words_count = len(text.split(' '))\n",
+        "            \n",
+        "        tokens.update({token: {'tf': count, 'words_count': words_count, \"pages_count_with_token\": pages_count_with_token}})\n",
+        "\n",
+        "        if (dictionary_tokens.get(file)):\n",
+        "            dictionary_tokens.get(file).get('tokens').update(tokens)\n",
+        "        else:\n",
+        "            dictionary_tokens.update({file: {'tokens': tokens}})\n",
+        "\n",
+        "tokens_output = 'drive/MyDrive/dz/tokens_tf_idf/'\n",
+        "lemmas_output = 'drive/MyDrive/dz/lemmas_tf_idf/'\n",
+        "\n",
+        "for value in dictionary_tokens:\n",
+        "    page_dictionary = dictionary_tokens.get(value)\n",
+        "    tokens = page_dictionary.get('tokens')\n",
+        "    \n",
+        "    with open(tokens_output + 'page-' + value + '.txt', 'w') as writefile:\n",
+        "        for token in tokens:\n",
+        "            idf = math.log2(100 / tokens.get(token).get('pages_count_with_token'))\n",
+        "            tf = tokens.get(token).get('tf') / tokens.get(token).get('words_count')\n",
+        "            writefile.write(token + \" \" + str(idf) + \" \" + str(tf * idf) + \"\\n\")\n",
+        "\n",
+        "for value in dictionary_lemmas:\n",
+        "    lemmas = dictionary_lemmas.get(value)\n",
+        "    with open(lemmas_output + 'page-' + value + '.txt', 'w') as writefile:\n",
+        "        for lemma in lemmas:\n",
+        "            if (lemmas.get(lemma).get('pages_count_with_lemma') == 0):\n",
+        "                idf = 0.0\n",
+        "            else:\n",
+        "                idf = math.log2(100 / lemmas.get(lemma).get('pages_count_with_lemma'))\n",
+        "\n",
+        "            tf = lemmas.get(lemma).get('forms_count') / lemmas.get(lemma).get('words_count')\n",
+        "            writefile.write(lemma + \" \" + str(idf) + \" \" + str(tf * idf) + \"\\n\")\n"
+      ]
+    }
+  ],
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "authorship_tag": "ABX9TyPQw8W9PHg7uWjmUdxD2P7G",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "display_name": "Python 3",
+      "name": "python3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 0
+}

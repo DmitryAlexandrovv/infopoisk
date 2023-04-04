@@ -1,0 +1,6 @@
+Flask
+pymorphy2
+scikit-learn
+numpy
+flask-cors
+bs4
